@@ -17,7 +17,6 @@ const LOGIN_BACKGROUND_DOTS = Array.from({ length: 20 }, (_, index) => ({
 
 export default function LoginPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -32,6 +31,7 @@ export default function LoginPage() {
     // 테스트 계정: pure-on / pureon123 → 이메일로 변환
     let loginEmail = email
     if (email === 'pure-on') loginEmail = 'pureon@salesup.app'
+    const supabase = createClient()
 
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: loginEmail,

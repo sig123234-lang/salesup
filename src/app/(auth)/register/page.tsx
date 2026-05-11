@@ -9,8 +9,6 @@ import { Zap, ArrowRight, ArrowLeft, User, Building2, Upload, Loader2, Check } f
 type AccountType = 'personal' | 'company'
 
 export default function RegisterPage() {
-  const supabase = createClient()
-
   const [step, setStep] = useState<1 | 2>(1)
   const [accountType, setAccountType] = useState<AccountType>('personal')
   const [loading, setLoading] = useState(false)
@@ -44,6 +42,7 @@ export default function RegisterPage() {
     }
 
     setLoading(true)
+    const supabase = createClient()
 
     const { data, error: authError } = await supabase.auth.signUp({
       email: form.email,
