@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+import { getOpenAIClient } from '@/lib/openai/server'
 
 export async function POST(req: NextRequest) {
   try {
+    const openai = getOpenAIClient()
     const formData = await req.formData()
     const audio = formData.get('audio') as File
 
@@ -23,6 +20,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ text: transcription.text })
   } catch (error) {
     console.error('Transcription error:', error)
-    return NextResponse.json({ error: 'Transcription failed' }, { status: 500 })
+    const message = error instanceof Error && error.message === 'Missing OPENAI_API_KEY'
+      ? 'OPENAI_API_KEY is not configured'
+      : 'Transcription failed'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

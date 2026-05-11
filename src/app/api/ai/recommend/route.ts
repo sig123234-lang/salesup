@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+import { getOpenAIClient } from '@/lib/openai/server'
 
 export async function POST() {
   const supabase = await createClient()
@@ -10,6 +8,7 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
+    const openai = getOpenAIClient()
     // 사용자의 거래처 데이터 가져오기
     const { data: clients } = await supabase
       .from('clients')
@@ -97,6 +96,9 @@ JSON 형식으로 응답:
     return NextResponse.json({ recommendations })
   } catch (error) {
     console.error('Recommendation error:', error)
-    return NextResponse.json({ error: 'Recommendation failed' }, { status: 500 })
+    const message = error instanceof Error && error.message === 'Missing OPENAI_API_KEY'
+      ? 'OPENAI_API_KEY is not configured'
+      : 'Recommendation failed'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+import { getOpenAIClient } from '@/lib/openai/server'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -15,6 +11,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
+    const openai = getOpenAIClient()
     const { transcript, type, clientContext } = await req.json()
 
     const systemPrompt = `당신은 영업 전문 AI 분석가입니다.
@@ -66,6 +63,9 @@ ${transcript}`
     return NextResponse.json({ analysis })
   } catch (error) {
     console.error('Analysis error:', error)
-    return NextResponse.json({ error: 'Analysis failed' }, { status: 500 })
+    const message = error instanceof Error && error.message === 'Missing OPENAI_API_KEY'
+      ? 'OPENAI_API_KEY is not configured'
+      : 'Analysis failed'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
