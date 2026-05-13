@@ -26,6 +26,7 @@ function QuickCaptureContent({
 }) {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
   const [transcript, setTranscript] = useState('')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noteText, setNoteText] = useState('')
   const [duration, setDuration] = useState(0)
   const mediaRef = useRef<MediaRecorder | null>(null)
@@ -42,11 +43,14 @@ function QuickCaptureContent({
   const handleClose = () => {
     if (timerRef.current) clearInterval(timerRef.current)
     mediaRef.current?.stream.getTracks().forEach((track) => track.stop())
+    setErrorMessage(null)
     close()
   }
 
   const startRecording = async () => {
     try {
+      setErrorMessage(null)
+      setTranscript('')
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream)
       chunksRef.current = []
@@ -84,9 +88,17 @@ function QuickCaptureContent({
         body: formData,
       })
       const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || '음성 인식에 실패했습니다.')
+      }
+      if (!data.text) {
+        throw new Error('음성 인식 결과가 비어 있습니다.')
+      }
       setTranscript(data.text || '')
+      setErrorMessage(null)
       setRecordingState('done')
-    } catch {
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '음성 인식에 실패했습니다.')
       setTranscript('(음성 인식 실패)')
       setRecordingState('done')
     }
@@ -176,6 +188,9 @@ function QuickCaptureContent({
                   <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 mb-4">
                     <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{transcript}</p>
                   </div>
+                  {errorMessage && (
+                    <p className="mb-4 text-sm text-red-500">{errorMessage}</p>
+                  )}
                   <button className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-500 transition-colors">
                     <Send className="w-4 h-4" />
                     저장하기

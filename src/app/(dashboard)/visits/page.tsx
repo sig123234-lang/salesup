@@ -23,6 +23,7 @@ export default function VisitsPage() {
   const [selectedClientId, setSelectedClientId] = useState('')
   const [currentVisit, setCurrentVisit] = useState<VisitRecord | null>(null)
   const [visitDuration, setVisitDuration] = useState(0)
+  const [visitError, setVisitError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!profile) return
@@ -95,6 +96,7 @@ export default function VisitsPage() {
       alert('방문할 거래처를 선택해주세요.')
       return
     }
+    setVisitError(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -141,6 +143,7 @@ export default function VisitsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
+    setVisitError(null)
     let transcript = null
     let analysis = null
 
@@ -149,18 +152,28 @@ export default function VisitsPage() {
         const formData = new FormData()
         formData.append('audio', audioBlob, 'visit.webm')
         const transcribeRes = await fetch('/api/ai/transcribe', { method: 'POST', body: formData })
-        const { text } = await transcribeRes.json()
-        transcript = text
+        const transcribeData = await transcribeRes.json()
+        if (!transcribeRes.ok) {
+          throw new Error(transcribeData.error || '음성 인식에 실패했습니다.')
+        }
+        if (!transcribeData.text) {
+          throw new Error('음성 인식 결과가 비어 있습니다.')
+        }
+        transcript = transcribeData.text
 
         const analyzeRes = await fetch('/api/ai/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transcript: text, type: 'visit' }),
+          body: JSON.stringify({ transcript: transcribeData.text, type: 'visit' }),
         })
         const data = await analyzeRes.json()
+        if (!analyzeRes.ok) {
+          throw new Error(data.error || 'AI 분석에 실패했습니다.')
+        }
         analysis = data.analysis
       } catch (err) {
         console.error(err)
+        setVisitError(err instanceof Error ? err.message : '방문 AI 분석에 실패했습니다.')
       }
     }
 
@@ -191,6 +204,11 @@ export default function VisitsPage() {
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto">
       <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-6">방문 기록</h1>
+      {visitError && (
+        <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+          {visitError}
+        </p>
+      )}
 
       {/* Active Visit */}
       {currentVisit ? (
@@ -212,7 +230,7 @@ export default function VisitsPage() {
             className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors"
           >
             <Square className="w-5 h-5" />
-            방문 종료 & AI 분석
+            방문 종료
           </button>
         </motion.div>
       ) : (

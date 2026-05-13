@@ -21,6 +21,7 @@ export default function CallsPage() {
   const [calls, setCalls] = useState<CallListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [recordState, setRecordState] = useState<RecordState>('idle')
+  const [recordError, setRecordError] = useState<string | null>(null)
   const [duration, setDuration] = useState(0)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [clients, setClients] = useState<Client[]>([])
@@ -87,6 +88,7 @@ export default function CallsPage() {
 
   const startRecording = async () => {
     try {
+      setRecordError(null)
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream)
       chunksRef.current = []
@@ -114,19 +116,28 @@ export default function CallsPage() {
   }
 
   const processAudio = async (blob: Blob) => {
+    let callRecordId: string | null = null
+    let transcript = ''
+
     try {
+      setRecordError(null)
       setRecordState('uploading')
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        throw new Error('로그인이 만료되었습니다. 다시 로그인해주세요.')
+      }
 
       // 오디오 업로드
       const filename = `calls/${user.id}/${Date.now()}.webm`
-      const { data: uploadData } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('audio')
         .upload(filename, blob)
+      if (uploadError) {
+        throw new Error(uploadError.message || '오디오 업로드에 실패했습니다.')
+      }
 
       // 통화 기록 생성
-      const { data: callRecord } = await supabase
+      const { data: callRecord, error: callRecordError } = await supabase
         .from('call_records')
         .insert({
           client_id: selectedClient?.id || null,
@@ -137,6 +148,10 @@ export default function CallsPage() {
         })
         .select()
         .single()
+      if (callRecordError || !callRecord) {
+        throw new Error(callRecordError?.message || '통화 기록 생성에 실패했습니다.')
+      }
+      callRecordId = callRecord.id
 
       setRecordState('analyzing')
 
@@ -144,26 +159,40 @@ export default function CallsPage() {
       const formData = new FormData()
       formData.append('audio', blob, 'call.webm')
       const transcribeRes = await fetch('/api/ai/transcribe', { method: 'POST', body: formData })
-      const { text } = await transcribeRes.json()
+      const transcribeData = await transcribeRes.json()
+      if (!transcribeRes.ok) {
+        throw new Error(transcribeData.error || '음성 인식에 실패했습니다.')
+      }
+      if (!transcribeData.text) {
+        throw new Error('음성 인식 결과가 비어 있습니다.')
+      }
+      transcript = transcribeData.text
 
       // Analyze
       const analyzeRes = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          transcript: text,
+          transcript,
           type: 'call',
           clientContext: selectedClient ? `고객명: ${selectedClient.name}` : '',
         }),
       })
-      const { analysis } = await analyzeRes.json()
+      const analyzeData = await analyzeRes.json()
+      if (!analyzeRes.ok) {
+        throw new Error(analyzeData.error || 'AI 분석에 실패했습니다.')
+      }
+      if (!analyzeData.analysis) {
+        throw new Error('AI 분석 결과가 비어 있습니다.')
+      }
+      const { analysis } = analyzeData
 
       // Update record
       await supabase.from('call_records').update({
-        transcript: text,
+        transcript,
         analysis,
         status: 'COMPLETED',
-      }).eq('id', callRecord?.id)
+      }).eq('id', callRecordId)
 
       // Activity 기록
       if (selectedClient) {
@@ -172,7 +201,7 @@ export default function CallsPage() {
           user_id: user.id,
           type: 'CALL',
           content: `통화 완료. AI 분석: ${analysis?.summary || '분석 완료'}`,
-          metadata: { call_id: callRecord?.id, analysis },
+          metadata: { call_id: callRecordId, analysis },
         })
 
         // 계약 확률 업데이트
@@ -189,6 +218,13 @@ export default function CallsPage() {
       await loadCalls()
     } catch (err) {
       console.error(err)
+      if (callRecordId) {
+        await supabase.from('call_records').update({
+          transcript: transcript || null,
+          status: 'FAILED',
+        }).eq('id', callRecordId)
+      }
+      setRecordError(err instanceof Error ? err.message : '통화 분석에 실패했습니다.')
       setRecordState('idle')
     }
   }
@@ -220,12 +256,17 @@ export default function CallsPage() {
 
         <div className="flex flex-col items-center gap-4">
           {recordState === 'idle' && (
-            <button
-              onClick={startRecording}
-              className="w-20 h-20 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center shadow-lg shadow-red-500/30 transition-all active:scale-95"
-            >
-              <Mic className="w-9 h-9 text-white" />
-            </button>
+            <>
+              <button
+                onClick={startRecording}
+                className="w-20 h-20 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center shadow-lg shadow-red-500/30 transition-all active:scale-95"
+              >
+                <Mic className="w-9 h-9 text-white" />
+              </button>
+              {recordError && (
+                <p className="text-center text-sm text-rose-300">{recordError}</p>
+              )}
+            </>
           )}
 
           {recordState === 'recording' && (
