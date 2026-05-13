@@ -9,69 +9,23 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icons/icon-72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-144.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
     }
   ],
   "shortcuts": [
     {
       "name": "새 거래처 추가",
-      "url": "/clients/new",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "url": "/clients/new"
     },
     {
       "name": "AI 인사이트",
-      "url": "/ai-insights",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "url": "/ai-insights"
     },
     {
       "name": "방문 시작",
-      "url": "/visits",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "url": "/visits"
     }
   ],
   "categories": ["business", "productivity"],

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import Providers from './providers'
 
@@ -15,8 +16,8 @@ export const metadata: Metadata = {
     title: 'SalesUp',
   },
   icons: {
-    icon: '/icons/icon-192.png',
-    apple: '/icons/icon-192.png',
+    icon: '/favicon.ico',
+    apple: '/favicon.ico',
   },
 }
 
@@ -34,16 +35,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ko" suppressHydrationWarning>
-      <head>
+    <html lang="ko" suppressHydrationWarning data-scroll-behavior="smooth">
+      <body className={`${inter.className} antialiased bg-slate-50 dark:bg-slate-950`}>
         {process.env.NEXT_PUBLIC_KAKAO_MAP_KEY && (
-          <script
-            src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`}
-            async
+          <Script
+            src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`}
+            strategy="beforeInteractive"
           />
         )}
-      </head>
-      <body className={`${inter.className} antialiased bg-slate-50 dark:bg-slate-950`}>
         <Providers>{children}</Providers>
       </body>
     </html>
