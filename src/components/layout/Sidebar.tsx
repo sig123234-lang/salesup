@@ -7,6 +7,7 @@ import {
   Zap,
   LayoutDashboard,
   Users,
+  Building2,
   Kanban,
   Calendar,
   Map,
@@ -36,6 +37,7 @@ const navItems = [
 
 const adminItems = [
   { href: '/admin/dashboard', icon: BarChart3, label: '관리자 현황' },
+  { href: '/company', icon: Building2, label: '회사 정보' },
   { href: '/admin/members', icon: Users, label: '멤버 관리' },
   { href: '/admin/analytics', icon: Brain, label: 'AI 리포트' },
 ]

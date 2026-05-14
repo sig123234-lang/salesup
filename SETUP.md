@@ -46,7 +46,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY
-NEXT_PUBLIC_KAKAO_MAP_KEY=YOUR_KAKAO_MAP_KEY  # 선택
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY  # 선택
 ```
 
 ## 6. 개발 서버 실행
@@ -64,10 +64,10 @@ npm run dev
 - 아이디: `pure-on` 또는 이메일: `pureon@salesup.app`
 - 비밀번호: `pureon123`
 
-## 8. 카카오맵 API (선택)
+## 8. Google Maps API (선택)
 
-https://developers.kakao.com 에서 앱 생성 후 JavaScript 키 발급
-`.env.local`의 `NEXT_PUBLIC_KAKAO_MAP_KEY`에 입력
+Google Cloud Console에서 Maps JavaScript API를 활성화한 뒤 API 키를 발급하세요.
+`.env.local`의 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`에 입력
 
 ## 9. OpenAI API
 

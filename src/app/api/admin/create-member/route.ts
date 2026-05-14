@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { upsertProfile } from '@/lib/supabase/admin'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -41,15 +42,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: createError.message }, { status: 400 })
   }
 
-  // 프로필 업데이트
-  await adminSupabase
-    .from('profiles')
-    .update({
+  try {
+    await upsertProfile(adminSupabase, {
+      id: newUser.user.id,
+      email,
+      fullName,
       role: 'SALES_MEMBER',
-      company_id: companyId || profile.company_id,
+      companyId: companyId || profile.company_id,
       username: username || null,
     })
-    .eq('id', newUser.user.id)
+  } catch (error) {
+    await adminSupabase.auth.admin.deleteUser(newUser.user.id)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : '멤버 프로필 생성에 실패했습니다.' },
+      { status: 500 }
+    )
+  }
 
   return NextResponse.json({ success: true, userId: newUser.user.id })
 }

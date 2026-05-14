@@ -37,10 +37,10 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={`${inter.className} antialiased bg-slate-50 dark:bg-slate-950`}>
-        {process.env.NEXT_PUBLIC_KAKAO_MAP_KEY && (
+        {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
           <Script
-            src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`}
-            strategy="beforeInteractive"
+            src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&loading=async`}
+            strategy="afterInteractive"
           />
         )}
         <Providers>{children}</Providers>

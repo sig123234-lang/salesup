@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -9,6 +10,7 @@ import { Zap, ArrowRight, ArrowLeft, User, Building2, Upload, Loader2, Check } f
 type AccountType = 'personal' | 'company'
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [step, setStep] = useState<1 | 2>(1)
   const [accountType, setAccountType] = useState<AccountType>('personal')
   const [loading, setLoading] = useState(false)
@@ -44,35 +46,45 @@ export default function RegisterPage() {
     setLoading(true)
     const supabase = createClient()
 
-    const { data, error: authError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: {
-        data: {
-          full_name: form.fullName,
-          role: accountType === 'company' ? 'COMPANY_ADMIN' : 'PERSONAL_USER',
-        },
-      },
+    const registerRes = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accountType,
+        fullName: form.fullName,
+        email: form.email,
+        password: form.password,
+        companyName: form.companyName,
+        businessNumber: form.businessNumber,
+      }),
     })
 
-    if (authError) {
-      setError(authError.message)
+    const registerData = await registerRes.json().catch(() => null)
+
+    if (!registerRes.ok) {
+      setError(registerData?.error || '회원가입에 실패했습니다.')
       setLoading(false)
       return
     }
 
-    // 회사 계정이면 회사 생성
-    if (accountType === 'company' && data.user) {
-      await supabase.from('companies').insert({
-        name: form.companyName,
-        business_number: form.businessNumber,
-        admin_id: data.user.id,
-        is_verified: false,
-      })
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email: form.email,
+      password: form.password,
+    })
+
+    if (loginError) {
+      setError('회원가입은 완료되었지만 자동 로그인에 실패했습니다. 로그인 페이지에서 다시 시도해주세요.')
+      setLoading(false)
+      return
     }
 
     setSuccess(true)
     setLoading(false)
+
+    window.setTimeout(() => {
+      router.replace(accountType === 'company' ? '/company' : '/dashboard')
+      router.refresh()
+    }, 1200)
   }
 
   if (success) {
@@ -229,7 +241,7 @@ export default function RegisterPage() {
                       </label>
                       <label className="w-full px-4 py-3 bg-white/10 border border-dashed border-white/20 rounded-xl text-slate-400 flex items-center gap-2 cursor-pointer hover:border-white/30 text-sm">
                         <Upload className="w-4 h-4" />
-                        파일 업로드
+                        가입 후 회사 페이지에서 등록 가능
                         <input type="file" accept="image/*,.pdf" className="hidden" />
                       </label>
                     </div>
