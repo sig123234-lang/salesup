@@ -271,3 +271,69 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: 'kanban-preview', enabled: true },
   { id: 'followup-alert', enabled: true },
 ]
+
+// ============================================================
+// Client Detail Section Config
+// ============================================================
+
+export type ClientDetailSectionId = 'info' | 'actions' | 'tabs'
+
+export interface ClientDetailSectionConfig {
+  id: ClientDetailSectionId
+  enabled: boolean
+}
+
+export const DEFAULT_CLIENT_DETAIL_SECTIONS: ClientDetailSectionConfig[] = [
+  { id: 'info', enabled: true },
+  { id: 'actions', enabled: true },
+  { id: 'tabs', enabled: true },
+]
+
+// ============================================================
+// Admin Dashboard Widget Config
+// ============================================================
+
+export type AdminDashboardWidgetId =
+  | 'stats'
+  | 'monthly-chart'
+  | 'status-pie'
+  | 'member-activity'
+  | 'top-clients'
+
+export interface AdminDashboardWidgetConfig {
+  id: AdminDashboardWidgetId
+  enabled: boolean
+}
+
+export const DEFAULT_ADMIN_DASHBOARD_WIDGETS: AdminDashboardWidgetConfig[] = [
+  { id: 'stats', enabled: true },
+  { id: 'monthly-chart', enabled: true },
+  { id: 'status-pie', enabled: true },
+  { id: 'member-activity', enabled: true },
+  { id: 'top-clients', enabled: true },
+]
+
+// ============================================================
+// AI Insights Widget Config
+// ============================================================
+
+export type AIInsightsWidgetId = 'stats' | 'recommendations'
+
+export interface AIInsightsWidgetConfig {
+  id: AIInsightsWidgetId
+  enabled: boolean
+}
+
+export const DEFAULT_AI_INSIGHTS_WIDGETS: AIInsightsWidgetConfig[] = [
+  { id: 'stats', enabled: true },
+  { id: 'recommendations', enabled: true },
+]
+
+// ============================================================
+// Sidebar Nav Config (id is href)
+// ============================================================
+
+export interface NavItemConfig {
+  id: string
+  enabled: boolean
+}

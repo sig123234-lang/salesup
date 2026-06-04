@@ -4,13 +4,18 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Brain, TrendingUp, Phone, Navigation, Sparkles,
-  RefreshCw, ChevronRight, Target, Clock, X
+  RefreshCw, ChevronRight, Target, Clock, X, Sliders,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { AIRecommendation, Client } from '@/types'
+import { useViewConfig } from '@/lib/hooks/useViewConfig'
+import {
+  AIRecommendation, Client,
+  AIInsightsWidgetId, DEFAULT_AI_INSIGHTS_WIDGETS,
+} from '@/types'
 import { formatRelativeTime, getProbabilityColor, SALES_STATUS_CONFIG } from '@/lib/utils'
 import Link from 'next/link'
+import { AIInsightsEditModal } from '@/components/ai/AIInsightsEditModal'
 
 type RecommendationItem = AIRecommendation & { client: Client | null }
 
@@ -26,6 +31,12 @@ export default function AIInsightsPage() {
     highPriorityCount: 0,
     thisWeekContacts: 0,
   })
+  const [editOpen, setEditOpen] = useState(false)
+
+  const { items, enabledItems, toggle, reorder } = useViewConfig(
+    'ai_insights_widgets',
+    DEFAULT_AI_INSIGHTS_WIDGETS
+  )
 
   async function loadInsights() {
     if (!profile) return
@@ -40,7 +51,6 @@ export default function AIInsightsPage() {
 
     setRecommendations((data || []) as RecommendationItem[])
 
-    // Stats
     const { data: clients } = await supabase
       .from('clients')
       .select('contract_probability')
@@ -121,50 +131,29 @@ export default function AIInsightsPage() {
     }
   }
 
-  return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Brain className="w-7 h-7 text-blue-600" />
-            AI 인사이트
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">영업 데이터 기반 AI 분석 및 추천</p>
-        </div>
-        <motion.button
-          onClick={generateRecommendations}
-          disabled={generating}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium shadow-lg shadow-blue-500/20 hover:opacity-90 disabled:opacity-50 transition-all"
-        >
-          <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
-          {generating ? '분석 중...' : 'AI 분석'}
-        </motion.button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+  function renderStats() {
+    return (
+      <div className="grid grid-cols-3 gap-3">
         {[
           { label: '평균 계약 확률', value: `${stats.avgProbability}%`, icon: Target, color: 'text-blue-600' },
           { label: '고확률 거래처', value: `${stats.highPriorityCount}건`, icon: TrendingUp, color: 'text-green-600' },
           { label: 'AI 추천', value: `${recommendations.length}건`, icon: Sparkles, color: 'text-purple-600' },
-        ].map((item, i) => (
-          <motion.div
+        ].map((item) => (
+          <div
             key={item.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
             className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm text-center"
           >
             <item.icon className={`w-5 h-5 ${item.color} mx-auto mb-1.5`} />
             <div className="text-xl font-bold text-slate-900 dark:text-white">{item.value}</div>
             <div className="text-xs text-slate-500">{item.label}</div>
-          </motion.div>
+          </div>
         ))}
       </div>
+    )
+  }
 
-      {/* Recommendations */}
+  function renderRecommendations() {
+    return (
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
           <h2 className="font-semibold text-slate-900 dark:text-white">재방문 추천 목록</h2>
@@ -206,7 +195,6 @@ export default function AIInsightsPage() {
                     transition={{ delay: i * 0.05 }}
                     className="p-4 flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
                   >
-                    {/* Score Circle */}
                     <div className={`w-12 h-12 rounded-2xl ${typeCfg.bg} flex-shrink-0 flex items-center justify-center`}>
                       <TypeIcon className={`w-5 h-5 ${typeCfg.color}`} />
                     </div>
@@ -248,7 +236,6 @@ export default function AIInsightsPage() {
                       </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex flex-col gap-2 flex-shrink-0">
                       <Link href={`/clients/${rec.client_id}`}>
                         <button className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-600 hover:bg-blue-100 transition-colors">
@@ -269,6 +256,82 @@ export default function AIInsightsPage() {
           </AnimatePresence>
         )}
       </div>
+    )
+  }
+
+  function renderWidget(id: AIInsightsWidgetId) {
+    switch (id) {
+      case 'stats':
+        return renderStats()
+      case 'recommendations':
+        return renderRecommendations()
+    }
+  }
+
+  return (
+    <div className="p-4 md:p-8 max-w-3xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Brain className="w-7 h-7 text-blue-600" />
+            AI 인사이트
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">영업 데이터 기반 AI 분석 및 추천</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+            title="편집"
+          >
+            <Sliders className="w-4 h-4" />
+          </button>
+          <motion.button
+            onClick={generateRecommendations}
+            disabled={generating}
+            whileTap={{ scale: 0.95 }}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium shadow-lg shadow-blue-500/20 hover:opacity-90 disabled:opacity-50 transition-all"
+          >
+            <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
+            {generating ? '분석 중...' : 'AI 분석'}
+          </motion.button>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        {enabledItems.map((w, i) => (
+          <motion.div
+            key={w.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06 }}
+          >
+            {renderWidget(w.id)}
+          </motion.div>
+        ))}
+
+        {enabledItems.length === 0 && (
+          <div className="py-20 text-center text-slate-400">
+            <Sliders className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">표시할 위젯이 없어요</p>
+            <button
+              onClick={() => setEditOpen(true)}
+              className="mt-3 text-sm text-blue-600 hover:text-blue-500"
+            >
+              위젯 추가하기
+            </button>
+          </div>
+        )}
+      </div>
+
+      {editOpen && (
+        <AIInsightsEditModal
+          items={items}
+          onToggle={toggle}
+          onReorder={reorder}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
     </div>
   )
 }

@@ -1,79 +1,43 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   Zap,
-  LayoutDashboard,
-  Users,
-  Building2,
-  Kanban,
-  Calendar,
-  Map,
-  Phone,
-  Navigation,
-  Brain,
-  AlertTriangle,
   Settings,
   LogOut,
   ChevronRight,
-  BarChart3,
+  Sliders,
 } from 'lucide-react'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useViewConfig } from '@/lib/hooks/useViewConfig'
 import { cn } from '@/lib/utils'
-
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: '대시보드', exact: true },
-  { href: '/clients', icon: Users, label: '거래처' },
-  { href: '/kanban', icon: Kanban, label: '영업 현황' },
-  { href: '/calendar', icon: Calendar, label: '캘린더' },
-  { href: '/map', icon: Map, label: '지도' },
-  { href: '/calls', icon: Phone, label: '통화 기록' },
-  { href: '/visits', icon: Navigation, label: '방문 기록' },
-  { href: '/ai-insights', icon: Brain, label: 'AI 인사이트' },
-  { href: '/claims', icon: AlertTriangle, label: '클레임' },
-]
-
-const adminItems = [
-  { href: '/admin/dashboard', icon: BarChart3, label: '관리자 현황' },
-  { href: '/company', icon: Building2, label: '회사 정보' },
-  { href: '/admin/members', icon: Users, label: '멤버 관리' },
-  { href: '/admin/analytics', icon: Brain, label: 'AI 리포트' },
-]
+import { NavItem, NAV_ITEM_BY_ID, DEFAULT_NAV_CONFIG } from './navItems'
+import { SidebarEditModal } from './SidebarEditModal'
 
 export default function Sidebar() {
   const pathname = usePathname()
   const { profile, signOut, isAdmin } = useAuth()
+  const { items, enabledItems, toggle, reorder } = useViewConfig(
+    'sidebar_nav',
+    DEFAULT_NAV_CONFIG
+  )
+  const [editOpen, setEditOpen] = useState(false)
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href
     return pathname.startsWith(href)
   }
 
-  const NavLink = ({ href, icon: Icon, label, exact }: typeof navItems[0]) => (
-    <Link href={href}>
-      <motion.div
-        whileHover={{ x: 2 }}
-        className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
-          isActive(href, exact)
-            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-        )}
-      >
-        <Icon className="w-5 h-5 flex-shrink-0" />
-        <span>{label}</span>
-        {isActive(href, exact) && (
-          <ChevronRight className="w-4 h-4 ml-auto" />
-        )}
-      </motion.div>
-    </Link>
-  )
+  const orderedNav = enabledItems
+    .map((it) => NAV_ITEM_BY_ID[it.id])
+    .filter((n): n is NavItem => Boolean(n))
+    .filter((n) => !n.admin || isAdmin)
 
   return (
     <>
-      {/* Desktop Sidebar */}
       <aside className="hidden md:flex fixed left-0 top-0 h-full w-64 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 flex-col z-40">
         {/* Logo */}
         <div className="h-16 flex items-center px-6 border-b border-slate-100 dark:border-slate-800">
@@ -87,20 +51,34 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-1">
-          {navItems.map((item) => (
-            <NavLink key={item.href} {...item} />
+          {orderedNav.map(({ href, icon: Icon, label, exact }) => (
+            <Link key={href} href={href}>
+              <motion.div
+                whileHover={{ x: 2 }}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
+                  isActive(href, exact)
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                )}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span>{label}</span>
+                {isActive(href, exact) && (
+                  <ChevronRight className="w-4 h-4 ml-auto" />
+                )}
+              </motion.div>
+            </Link>
           ))}
 
-          {isAdmin && (
-            <>
-              <div className="pt-4 pb-2 px-3">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">관리자</span>
-              </div>
-              {adminItems.map((item) => (
-                <NavLink key={item.href} {...item} />
-              ))}
-            </>
-          )}
+          {/* Edit nav */}
+          <button
+            onClick={() => setEditOpen(true)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300 transition-all"
+          >
+            <Sliders className="w-4 h-4 flex-shrink-0" />
+            <span>메뉴 편집</span>
+          </button>
         </nav>
 
         {/* Profile */}
@@ -131,6 +109,16 @@ export default function Sidebar() {
           </Link>
         </div>
       </aside>
+
+      {editOpen && (
+        <SidebarEditModal
+          items={items}
+          isAdmin={isAdmin}
+          onToggle={toggle}
+          onReorder={reorder}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
     </>
   )
 }
