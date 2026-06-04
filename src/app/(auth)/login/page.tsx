@@ -33,13 +33,27 @@ export default function LoginPage() {
     if (email === 'pure-on') loginEmail = 'pureon@salesup.app'
     const supabase = createClient()
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password,
-    })
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password,
+      })
 
-    if (authError) {
-      setError('아이디 또는 비밀번호가 올바르지 않습니다.')
+      if (authError) {
+        // 잘못된 자격증명이면 인증 실패, 그 외(서버 다운 등)는 원인을 그대로 노출
+        const isInvalidCredentials =
+          authError.status === 400 || authError.code === 'invalid_credentials'
+        setError(
+          isInvalidCredentials
+            ? '아이디 또는 비밀번호가 올바르지 않습니다.'
+            : `로그인 서버 오류: ${authError.message}`
+        )
+        setLoading(false)
+        return
+      }
+    } catch (networkError) {
+      // 네트워크 단계에서 throw되는 경우 (서버 미응답 / 프로젝트 일시정지 등)
+      setError('인증 서버에 연결할 수 없습니다. 프로젝트 상태를 확인해 주세요.')
       setLoading(false)
       return
     }

@@ -225,3 +225,29 @@ export interface DashboardStats {
   conversion_rate: number
   pending_followups: number
 }
+
+// ============================================================
+// Dashboard Widget System
+// ============================================================
+
+export type WidgetId =
+  | 'stats'
+  | 'recent-clients'
+  | 'calendar'
+  | 'ai-tip'
+  | 'kanban-preview'
+  | 'followup-alert'
+
+export interface WidgetConfig {
+  id: WidgetId
+  enabled: boolean
+}
+
+export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
+  { id: 'stats', enabled: true },
+  { id: 'recent-clients', enabled: true },
+  { id: 'calendar', enabled: true },
+  { id: 'ai-tip', enabled: true },
+  { id: 'kanban-preview', enabled: true },
+  { id: 'followup-alert', enabled: true },
+]
