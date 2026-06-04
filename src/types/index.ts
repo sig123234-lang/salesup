@@ -243,6 +243,26 @@ export interface WidgetConfig {
   enabled: boolean
 }
 
+// ============================================================
+// Kanban Column Config
+// ============================================================
+
+export interface KanbanColumnConfig {
+  id: SalesStatus
+  enabled: boolean
+}
+
+export const DEFAULT_KANBAN_CONFIG: KanbanColumnConfig[] = [
+  { id: 'NEW_LEAD', enabled: true },
+  { id: 'FIRST_VISIT', enabled: true },
+  { id: 'QUOTE_SENT', enabled: true },
+  { id: 'FOLLOW_UP', enabled: true },
+  { id: 'CONTRACT_IN_PROGRESS', enabled: true },
+  { id: 'CONTRACTED', enabled: true },
+  { id: 'POTENTIAL', enabled: false },
+  { id: 'REJECTED', enabled: false },
+]
+
 export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: 'stats', enabled: true },
   { id: 'recent-clients', enabled: true },
