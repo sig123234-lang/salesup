@@ -23,12 +23,18 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { WidgetConfig, WidgetId } from '@/types'
 
 const WIDGET_META: Record<WidgetId, { name: string; description: string }> = {
+  'daily-brief': { name: 'AI 일일 브리핑', description: '오늘 집중할 TOP 3 액션을 AI가 매일 생성' },
   stats: { name: '통계 카드', description: '전체 거래처, 계약 완료 등 핵심 수치' },
   'recent-clients': { name: '최근 거래처', description: '최근 업데이트된 거래처 목록' },
   calendar: { name: '다가오는 일정', description: '예정된 미팅, 방문, 연락 일정' },
   'ai-tip': { name: 'AI 추천', description: 'AI가 분석한 영업 인사이트' },
   'kanban-preview': { name: '영업 파이프라인', description: '단계별 거래처 현황 요약' },
   'followup-alert': { name: '후속 연락 필요', description: '연락 기한이 지난 거래처 알림' },
+  'cs-reminder': { name: 'CS 리마인더', description: '계약 완료 고객 주기적 연락 알림' },
+  'followup-counter': { name: '오늘의 팔로업 TOP 5', description: '접촉 횟수·확률 기반 우선순위' },
+  'goal-tracker': { name: '월간 목표 트래커', description: '계약/통화/방문 목표 달성률 + 추이' },
+  'competitor-intel': { name: '경쟁사 인텔리전스', description: '통화에서 언급된 경쟁사 언급량/승률' },
+  'daily-report': { name: '오늘 영업 일지', description: 'AI가 오늘 활동을 일지 형태로 자동 정리' },
 }
 
 interface SortableItemProps {

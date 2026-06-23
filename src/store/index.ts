@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Profile, QuickCaptureMode, Client } from '@/types'
+import { Profile, QuickCaptureMode, Client, ChatMessage } from '@/types'
 
 // ============================================================
 // Auth Store
@@ -82,3 +82,43 @@ export const useClientStore = create<ClientStore>((set, get) => ({
     set({ recentClients: [client, ...recent].slice(0, 5) })
   },
 }))
+
+// ============================================================
+// AI Chat Store
+// ============================================================
+interface AIChatStore {
+  isOpen: boolean
+  messages: ChatMessage[]
+  open: () => void
+  close: () => void
+  toggle: () => void
+  addMessage: (msg: ChatMessage) => void
+  updateLastAssistant: (delta: string) => void
+  clearHistory: () => void
+}
+
+export const useAIChatStore = create<AIChatStore>()(
+  persist(
+    (set, get) => ({
+      isOpen: false,
+      messages: [],
+      open: () => set({ isOpen: true }),
+      close: () => set({ isOpen: false }),
+      toggle: () => set({ isOpen: !get().isOpen }),
+      addMessage: (msg) => set({ messages: [...get().messages, msg] }),
+      updateLastAssistant: (delta) =>
+        set({
+          messages: get().messages.map((m, i, arr) =>
+            i === arr.length - 1 && m.role === 'assistant'
+              ? { ...m, content: m.content + delta }
+              : m,
+          ),
+        }),
+      clearHistory: () => set({ messages: [] }),
+    }),
+    {
+      name: 'salesup-ai-chat',
+      partialize: (state) => ({ messages: state.messages }),
+    },
+  ),
+)

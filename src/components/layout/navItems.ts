@@ -10,6 +10,7 @@ import {
   Brain,
   AlertTriangle,
   BarChart3,
+  BookText,
   type LucideIcon,
 } from 'lucide-react'
 import { NavItemConfig } from '@/types'
@@ -31,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: '/map', href: '/map', icon: Map, label: '지도' },
   { id: '/calls', href: '/calls', icon: Phone, label: '통화 기록' },
   { id: '/visits', href: '/visits', icon: Navigation, label: '방문 기록' },
+  { id: '/scripts', href: '/scripts', icon: BookText, label: '스크립트' },
   { id: '/ai-insights', href: '/ai-insights', icon: Brain, label: 'AI 인사이트' },
   { id: '/claims', href: '/claims', icon: AlertTriangle, label: '클레임' },
   { id: '/admin/dashboard', href: '/admin/dashboard', icon: BarChart3, label: '관리자 현황', admin: true },

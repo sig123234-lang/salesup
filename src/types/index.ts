@@ -26,6 +26,32 @@ export type CallAnalysisResult = {
   next_contact_date: string | null
   summary: string
   keywords: string[]
+  // Extended fields (Claude API)
+  next_contact_reason?: string
+  next_calendar_event?: {
+    title: string
+    type: 'CALL' | 'VISIT' | 'MEETING' | 'FOLLOW_UP'
+    suggested_start: string | null
+    suggested_end: string | null
+    is_confirmed: boolean
+    notes: string
+  } | null
+  cs_reminders?: Array<{
+    title: string
+    due_date: string
+    type: 'FOLLOW_UP' | 'OTHER'
+  }>
+  spin_feedback?: {
+    situation: boolean
+    problem: boolean
+    implication: boolean
+    need_payoff: boolean
+    coaching_tip: string
+  }
+  talk_listen_estimate?: {
+    salesperson_ratio: number
+    feedback: string
+  }
 }
 
 export type VisitAnalysisResult = {
@@ -51,6 +77,7 @@ export interface Profile {
   avatar_url: string | null
   phone: string | null
   is_active?: boolean
+  metadata?: Record<string, unknown>
   created_at: string
   updated_at: string
   company?: Company
@@ -145,6 +172,14 @@ export interface VisitRecord {
   user?: Profile
 }
 
+export type CalendarEventSource =
+  | 'manual'
+  | 'ai_analysis'
+  | 'ai_recommendation'
+  | 'quick_capture'
+  | 'cs_reminder'
+  | 'followup_sequence'
+
 export interface CalendarEvent {
   id: string
   user_id: string
@@ -157,6 +192,7 @@ export interface CalendarEvent {
   type: 'CALL' | 'VISIT' | 'MEETING' | 'FOLLOW_UP' | 'OTHER'
   is_ai_generated: boolean
   is_completed: boolean
+  source: CalendarEventSource | null
   created_at: string
   // Joined
   client?: Client
@@ -207,7 +243,7 @@ export interface KanbanColumn {
 
 export interface QuickCaptureMode {
   isOpen: boolean
-  mode: 'VOICE' | 'NOTE' | 'CLIENT' | 'EVENT' | null
+  mode: 'VOICE' | 'NOTE' | 'CLIENT' | 'EVENT' | 'CARD' | null
 }
 
 export interface MapFilter {
@@ -231,12 +267,18 @@ export interface DashboardStats {
 // ============================================================
 
 export type WidgetId =
+  | 'daily-brief'
   | 'stats'
   | 'recent-clients'
   | 'calendar'
   | 'ai-tip'
   | 'kanban-preview'
   | 'followup-alert'
+  | 'cs-reminder'
+  | 'followup-counter'
+  | 'goal-tracker'
+  | 'competitor-intel'
+  | 'daily-report'
 
 export interface WidgetConfig {
   id: WidgetId
@@ -264,19 +306,25 @@ export const DEFAULT_KANBAN_CONFIG: KanbanColumnConfig[] = [
 ]
 
 export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
+  { id: 'daily-brief', enabled: true },
   { id: 'stats', enabled: true },
   { id: 'recent-clients', enabled: true },
   { id: 'calendar', enabled: true },
   { id: 'ai-tip', enabled: true },
   { id: 'kanban-preview', enabled: true },
   { id: 'followup-alert', enabled: true },
+  { id: 'cs-reminder', enabled: true },
+  { id: 'followup-counter', enabled: true },
+  { id: 'goal-tracker', enabled: false },
+  { id: 'competitor-intel', enabled: false },
+  { id: 'daily-report', enabled: false },
 ]
 
 // ============================================================
 // Client Detail Section Config
 // ============================================================
 
-export type ClientDetailSectionId = 'info' | 'actions' | 'tabs'
+export type ClientDetailSectionId = 'info' | 'actions' | 'meddic' | 'tabs'
 
 export interface ClientDetailSectionConfig {
   id: ClientDetailSectionId
@@ -286,8 +334,33 @@ export interface ClientDetailSectionConfig {
 export const DEFAULT_CLIENT_DETAIL_SECTIONS: ClientDetailSectionConfig[] = [
   { id: 'info', enabled: true },
   { id: 'actions', enabled: true },
+  { id: 'meddic', enabled: true },
   { id: 'tabs', enabled: true },
 ]
+
+// ============================================================
+// AI Chat
+// ============================================================
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
+}
+
+// ============================================================
+// MEDDIC
+// ============================================================
+
+export interface MEDDIC {
+  metrics?: string
+  economic_buyer?: string
+  decision_criteria?: string
+  decision_process?: string
+  identify_pain?: string
+  champion?: string
+}
 
 // ============================================================
 // Admin Dashboard Widget Config
@@ -295,6 +368,7 @@ export const DEFAULT_CLIENT_DETAIL_SECTIONS: ClientDetailSectionConfig[] = [
 
 export type AdminDashboardWidgetId =
   | 'stats'
+  | 'team-members'
   | 'monthly-chart'
   | 'status-pie'
   | 'member-activity'
@@ -307,6 +381,7 @@ export interface AdminDashboardWidgetConfig {
 
 export const DEFAULT_ADMIN_DASHBOARD_WIDGETS: AdminDashboardWidgetConfig[] = [
   { id: 'stats', enabled: true },
+  { id: 'team-members', enabled: true },
   { id: 'monthly-chart', enabled: true },
   { id: 'status-pie', enabled: true },
   { id: 'member-activity', enabled: true },

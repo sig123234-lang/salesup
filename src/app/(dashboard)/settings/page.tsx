@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
+  Bot,
   Building2,
   Loader2,
   LogOut,
@@ -19,6 +20,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useUIStore } from '@/store'
 import { cn } from '@/lib/utils'
+import { NotificationSettings } from '@/components/settings/NotificationSettings'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -56,6 +58,26 @@ type SettingsContentProps = {
   setTheme: (theme: 'light' | 'dark' | 'system') => void
 }
 
+type AISettingsForm = {
+  productDescription: string
+  targetCustomer: string
+  avgDealSize: string
+  salesCycleDays: string
+  competitorsText: string
+  customInstructions: string
+  industryTemplate: string
+  territory: string
+}
+
+const INDUSTRY_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'general', label: '일반' },
+  { value: 'insurance', label: '보험' },
+  { value: 'realestate', label: '부동산/임대' },
+  { value: 'medical', label: '의료기기' },
+  { value: 'pharma', label: '제약' },
+  { value: 'it', label: 'IT/SaaS' },
+]
+
 function SettingsContent({
   profile,
   routerPush,
@@ -64,6 +86,8 @@ function SettingsContent({
   theme,
   setTheme,
 }: SettingsContentProps) {
+  const existingAI = ((profile.metadata?.ai_settings ?? {}) as Record<string, unknown>)
+
   const [profileForm, setProfileForm] = useState({
     fullName: profile.full_name || '',
     username: profile.username || '',
@@ -73,8 +97,21 @@ function SettingsContent({
     password: '',
     confirmPassword: '',
   })
+  const [aiForm, setAIForm] = useState<AISettingsForm>({
+    productDescription: (existingAI.product_description as string) || '',
+    targetCustomer: (existingAI.target_customer as string) || '',
+    avgDealSize: (existingAI.avg_deal_size as string) || '',
+    salesCycleDays: existingAI.sales_cycle_days != null ? String(existingAI.sales_cycle_days) : '',
+    competitorsText: Array.isArray(existingAI.competitors)
+      ? (existingAI.competitors as string[]).join(', ')
+      : '',
+    customInstructions: (existingAI.custom_instructions as string) || '',
+    industryTemplate: (existingAI.industry_template as string) || 'general',
+    territory: (existingAI.territory as string) || '',
+  })
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
+  const [savingAI, setSavingAI] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -134,6 +171,54 @@ function SettingsContent({
     setPasswordForm({ password: '', confirmPassword: '' })
     setMessage('비밀번호가 변경되었습니다.')
     setSavingPassword(false)
+  }
+
+  const saveAISettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingAI(true)
+    setError('')
+    setMessage('')
+
+    const competitors = aiForm.competitorsText
+      .split(/[,\n]/)
+      .map((c) => c.trim())
+      .filter(Boolean)
+
+    const salesCycle = aiForm.salesCycleDays ? Number(aiForm.salesCycleDays) : undefined
+    if (salesCycle != null && (!Number.isFinite(salesCycle) || salesCycle < 0)) {
+      setError('영업 사이클은 0 이상의 숫자여야 합니다.')
+      setSavingAI(false)
+      return
+    }
+
+    const aiSettings = {
+      product_description: aiForm.productDescription || undefined,
+      target_customer: aiForm.targetCustomer || undefined,
+      avg_deal_size: aiForm.avgDealSize || undefined,
+      sales_cycle_days: salesCycle,
+      competitors: competitors.length > 0 ? competitors : undefined,
+      custom_instructions: aiForm.customInstructions || undefined,
+      industry_template: aiForm.industryTemplate || 'general',
+      territory: aiForm.territory || undefined,
+    }
+
+    const currentMetadata = (profile.metadata ?? {}) as Record<string, unknown>
+    const nextMetadata = { ...currentMetadata, ai_settings: aiSettings }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ metadata: nextMetadata })
+      .eq('id', profile.id)
+
+    if (updateError) {
+      setError(updateError.message)
+      setSavingAI(false)
+      return
+    }
+
+    await refreshProfile()
+    setMessage('AI 어시스턴트 설정이 저장되었습니다.')
+    setSavingAI(false)
   }
 
   return (
@@ -276,6 +361,142 @@ function SettingsContent({
           </button>
         </motion.form>
 
+        <motion.form
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.06 }}
+          onSubmit={saveAISettings}
+          className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 p-5 shadow-sm"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Bot className="w-4 h-4 text-indigo-500" />
+            <h3 className="font-semibold text-slate-900 dark:text-white">AI 어시스턴트 설정</h3>
+          </div>
+          <p className="text-xs text-slate-400 mb-4">
+            AI가 분석/추천/채팅 시 회사·산업 맥락을 반영하도록 채워주세요.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm text-slate-500 mb-2">취급 제품/서비스</label>
+              <textarea
+                rows={2}
+                value={aiForm.productDescription}
+                onChange={(e) =>
+                  setAIForm((prev) => ({ ...prev, productDescription: e.target.value }))
+                }
+                placeholder="예: 친환경 세정제 및 위생용품"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-slate-500 mb-2">주요 고객군</label>
+              <input
+                value={aiForm.targetCustomer}
+                onChange={(e) =>
+                  setAIForm((prev) => ({ ...prev, targetCustomer: e.target.value }))
+                }
+                placeholder="예: 병원, 요양원, 학교"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-slate-500 mb-2">평균 계약 금액</label>
+              <input
+                value={aiForm.avgDealSize}
+                onChange={(e) => setAIForm((prev) => ({ ...prev, avgDealSize: e.target.value }))}
+                placeholder="예: 월 50~200만원"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-slate-500 mb-2">영업 사이클 (일)</label>
+              <input
+                type="number"
+                min={0}
+                value={aiForm.salesCycleDays}
+                onChange={(e) =>
+                  setAIForm((prev) => ({ ...prev, salesCycleDays: e.target.value }))
+                }
+                placeholder="예: 30"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-slate-500 mb-2">담당 지역/업종</label>
+              <input
+                value={aiForm.territory}
+                onChange={(e) => setAIForm((prev) => ({ ...prev, territory: e.target.value }))}
+                placeholder="예: 서울 강남·서초"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm text-slate-500 mb-2">
+                주요 경쟁사 (쉼표나 줄바꿈으로 구분)
+              </label>
+              <input
+                value={aiForm.competitorsText}
+                onChange={(e) =>
+                  setAIForm((prev) => ({ ...prev, competitorsText: e.target.value }))
+                }
+                placeholder="예: 유한킴벌리, 쟁쟁이"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm text-slate-500 mb-2">
+                AI에게 특별 지침 (500자 이내)
+              </label>
+              <textarea
+                rows={3}
+                maxLength={500}
+                value={aiForm.customInstructions}
+                onChange={(e) =>
+                  setAIForm((prev) => ({
+                    ...prev,
+                    customInstructions: e.target.value.slice(0, 500),
+                  }))
+                }
+                placeholder="예: 항상 환경부 인증 마크를 강조할 것"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                {aiForm.customInstructions.length}/500
+              </p>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm text-slate-500 mb-2">산업 특화 템플릿</label>
+              <select
+                value={aiForm.industryTemplate}
+                onChange={(e) =>
+                  setAIForm((prev) => ({ ...prev, industryTemplate: e.target.value }))
+                }
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              >
+                {INDUSTRY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={savingAI}
+            className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {savingAI ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Bot className="w-4 h-4" />
+            )}
+            AI 설정 저장
+          </button>
+        </motion.form>
+
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -300,6 +521,19 @@ function SettingsContent({
             <Building2 className="w-4 h-4" />
             {profile?.company_id ? '회사 페이지 열기' : '회사 만들기'}
           </Link>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <NotificationSettings
+            initialSettings={
+              (profile?.metadata as { notification_settings?: { enabled?: boolean; remind_minutes_before?: number; morning_hour?: number } } | null)
+                ?.notification_settings ?? null
+            }
+          />
         </motion.div>
 
         <motion.div

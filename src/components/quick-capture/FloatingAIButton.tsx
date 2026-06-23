@@ -2,18 +2,30 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mic, FileText, UserPlus, Calendar, X, Zap } from 'lucide-react'
-import { useQuickCaptureStore } from '@/store'
+import { Mic, FileText, UserPlus, Calendar, MessageSquare, Camera, X, Zap } from 'lucide-react'
+import { useQuickCaptureStore, useAIChatStore } from '@/store'
 
-const actions = [
-  { mode: 'VOICE' as const, icon: Mic, label: '음성 메모', color: 'bg-red-500' },
-  { mode: 'NOTE' as const, icon: FileText, label: '빠른 메모', color: 'bg-amber-500' },
-  { mode: 'CLIENT' as const, icon: UserPlus, label: '고객 추가', color: 'bg-green-500' },
-  { mode: 'EVENT' as const, icon: Calendar, label: '일정 추가', color: 'bg-purple-500' },
+type ActionId =
+  | { kind: 'capture'; mode: 'VOICE' | 'NOTE' | 'CLIENT' | 'EVENT' | 'CARD' }
+  | { kind: 'chat' }
+
+const actions: Array<{
+  id: ActionId
+  icon: typeof Mic
+  label: string
+  color: string
+}> = [
+  { id: { kind: 'chat' }, icon: MessageSquare, label: 'AI 코치 채팅', color: 'bg-indigo-500' },
+  { id: { kind: 'capture', mode: 'CARD' }, icon: Camera, label: '명함 등록', color: 'bg-sky-500' },
+  { id: { kind: 'capture', mode: 'VOICE' }, icon: Mic, label: '음성 메모', color: 'bg-red-500' },
+  { id: { kind: 'capture', mode: 'NOTE' }, icon: FileText, label: '빠른 메모', color: 'bg-amber-500' },
+  { id: { kind: 'capture', mode: 'CLIENT' }, icon: UserPlus, label: '고객 추가', color: 'bg-green-500' },
+  { id: { kind: 'capture', mode: 'EVENT' }, icon: Calendar, label: '일정 추가', color: 'bg-purple-500' },
 ]
 
 export default function FloatingAIButton() {
   const { open } = useQuickCaptureStore()
+  const { open: openChat } = useAIChatStore()
   const [expanded, setExpanded] = useState(false)
   const [shakeDetected, setShakeDetected] = useState(false)
 
@@ -64,25 +76,31 @@ export default function FloatingAIButton() {
       <AnimatePresence>
         {expanded && (
           <>
-            {actions.map(({ mode, icon: Icon, label, color }, i) => (
-              <motion.button
-                key={mode}
-                initial={{ opacity: 0, y: 20, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.8 }}
-                transition={{ delay: i * 0.05 }}
-                onClick={() => {
-                  setExpanded(false)
-                  open(mode)
-                }}
-                className="flex items-center gap-2 pr-4 pl-3 py-2.5 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-100 dark:border-slate-700 hover:shadow-xl transition-all"
-              >
-                <div className={`w-7 h-7 ${color} rounded-full flex items-center justify-center`}>
-                  <Icon className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">{label}</span>
-              </motion.button>
-            ))}
+            {actions.map(({ id, icon: Icon, label, color }, i) => {
+              const key = id.kind === 'chat' ? 'chat' : id.mode
+              return (
+                <motion.button
+                  key={key}
+                  initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                  transition={{ delay: i * 0.05 }}
+                  onClick={() => {
+                    setExpanded(false)
+                    if (id.kind === 'chat') openChat()
+                    else open(id.mode)
+                  }}
+                  className="flex items-center gap-2 pr-4 pl-3 py-2.5 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-100 dark:border-slate-700 hover:shadow-xl transition-all"
+                >
+                  <div className={`w-7 h-7 ${color} rounded-full flex items-center justify-center`}>
+                    <Icon className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
+                    {label}
+                  </span>
+                </motion.button>
+              )
+            })}
           </>
         )}
       </AnimatePresence>

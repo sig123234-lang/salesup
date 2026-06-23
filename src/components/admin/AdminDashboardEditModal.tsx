@@ -13,6 +13,10 @@ interface Props {
 
 const WIDGET_META: Record<AdminDashboardWidgetId, ConfigItemMeta> = {
   stats: { name: '핵심 지표', description: '멤버 · 거래처 · 전환율 등 6개 카드' },
+  'team-members': {
+    name: '팀원 현황',
+    description: '팀원별 활동/위험 플래그 + AI 코칭 상세',
+  },
   'monthly-chart': { name: '월별 계약 현황', description: '최근 6개월 라인 차트' },
   'status-pie': { name: '영업 상태 분포', description: '단계별 거래처 파이 차트' },
   'member-activity': { name: '멤버별 활동 현황', description: '거래처 · 계약 · 통화 · 방문' },

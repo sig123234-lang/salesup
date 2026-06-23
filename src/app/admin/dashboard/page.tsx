@@ -21,6 +21,7 @@ import {
 } from '@/types'
 import Link from 'next/link'
 import { AdminDashboardEditModal } from '@/components/admin/AdminDashboardEditModal'
+import { TeamMembersPanel } from '@/components/admin/TeamMembersPanel'
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#f97316', '#84cc16']
 
@@ -55,6 +56,7 @@ type TopClientItem = Pick<Client, 'id' | 'name' | 'sales_status' | 'contract_pro
 
 const WIDGET_SPAN: Record<AdminDashboardWidgetId, 'full' | 'half'> = {
   stats: 'full',
+  'team-members': 'full',
   'monthly-chart': 'half',
   'status-pie': 'half',
   'member-activity': 'full',
@@ -177,6 +179,8 @@ export default function AdminDashboardPage() {
 
   function renderWidget(id: AdminDashboardWidgetId) {
     switch (id) {
+      case 'team-members':
+        return <TeamMembersPanel />
       case 'stats':
         return (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

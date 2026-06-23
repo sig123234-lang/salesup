@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Client, Activity, CallRecord, VisitRecord,
+  Client, CallRecord, VisitRecord,
   ClientDetailSectionId, DEFAULT_CLIENT_DETAIL_SECTIONS,
 } from '@/types'
 import { SALES_STATUS_CONFIG, formatDate, formatRelativeTime, getProbabilityBg, getProbabilityColor } from '@/lib/utils'
@@ -17,6 +17,9 @@ import Link from 'next/link'
 import { useUIStore } from '@/store'
 import { useViewConfig } from '@/lib/hooks/useViewConfig'
 import { ClientDetailEditModal } from '@/components/clients/ClientDetailEditModal'
+import { MEDDICWidget } from '@/components/clients/MEDDICWidget'
+import { ActivityTimeline } from '@/components/clients/ActivityTimeline'
+import { FollowupSequenceCard } from '@/components/calls/FollowupSequenceCard'
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -25,7 +28,6 @@ export default function ClientDetailPage() {
   const { setActiveVisitId } = useUIStore()
 
   const [client, setClient] = useState<Client | null>(null)
-  const [activities, setActivities] = useState<Activity[]>([])
   const [calls, setCalls] = useState<CallRecord[]>([])
   const [visits, setVisits] = useState<VisitRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,9 +63,8 @@ export default function ClientDetailPage() {
     let cancelled = false
 
     async function fetchClient() {
-      const [clientRes, activitiesRes, callsRes, visitsRes] = await Promise.all([
+      const [clientRes, callsRes, visitsRes] = await Promise.all([
         supabase.from('clients').select('*').eq('id', id).single(),
-        supabase.from('activities').select('*, user:profiles(full_name)').eq('client_id', id).order('created_at', { ascending: false }).limit(20),
         supabase.from('call_records').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(10),
         supabase.from('visit_records').select('*').eq('client_id', id).order('created_at', { ascending: false }).limit(10),
       ])
@@ -71,7 +72,6 @@ export default function ClientDetailPage() {
       if (cancelled) return
 
       setClient(clientRes.data as Client)
-      setActivities((activitiesRes.data || []) as Activity[])
       setCalls((callsRes.data || []) as CallRecord[])
       setVisits((visitsRes.data || []) as VisitRecord[])
       setLoading(false)
@@ -197,22 +197,29 @@ export default function ClientDetailPage() {
   function renderActions() {
     if (!client) return null
     return (
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { icon: Phone, label: '전화', color: 'text-green-600 bg-green-50 dark:bg-green-950', action: () => window.open(`tel:${client.phone}`) },
-          { icon: Navigation, label: '방문 시작', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950', action: startVisit },
-          { icon: Mic, label: '통화 녹음', color: 'text-red-600 bg-red-50 dark:bg-red-950', action: () => router.push(`/calls?client=${id}`) },
-          { icon: Calendar, label: '일정 추가', color: 'text-purple-600 bg-purple-50 dark:bg-purple-950', action: () => router.push('/calendar?new=1') },
-        ].map(({ icon: Icon, label, color, action }) => (
-          <button
-            key={label}
-            onClick={action}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl ${color} hover:opacity-80 transition-all active:scale-95`}
-          >
-            <Icon className="w-5 h-5" />
-            <span className="text-xs font-medium">{label}</span>
-          </button>
-        ))}
+      <div className="space-y-3">
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { icon: Phone, label: '전화', color: 'text-green-600 bg-green-50 dark:bg-green-950', action: () => window.open(`tel:${client.phone}`) },
+            { icon: Navigation, label: '방문 시작', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950', action: startVisit },
+            { icon: Mic, label: '통화 녹음', color: 'text-red-600 bg-red-50 dark:bg-red-950', action: () => router.push(`/calls?client=${id}`) },
+            { icon: Calendar, label: '일정 추가', color: 'text-purple-600 bg-purple-50 dark:bg-purple-950', action: () => router.push('/calendar?new=1') },
+          ].map(({ icon: Icon, label, color, action }) => (
+            <button
+              key={label}
+              onClick={action}
+              className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl ${color} hover:opacity-80 transition-all active:scale-95`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-xs font-medium">{label}</span>
+            </button>
+          ))}
+        </div>
+        <FollowupSequenceCard
+          clientId={client.id}
+          contractProbability={client.contract_probability}
+          csOnly={client.sales_status === 'CONTRACTED'}
+        />
       </div>
     )
   }
@@ -239,24 +246,8 @@ export default function ClientDetailPage() {
         </div>
 
         <div className="p-4">
-          {activeTab === 'timeline' && (
-            <div className="space-y-3">
-              {activities.length === 0 ? (
-                <p className="text-center text-slate-400 py-6 text-sm">활동 기록이 없습니다</p>
-              ) : (
-                activities.map((act) => (
-                  <div key={act.id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 text-sm">
-                      {act.type === 'CALL' ? '📞' : act.type === 'VISIT' ? '🚗' : act.type === 'AI_INSIGHT' ? '🤖' : '📝'}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{act.content}</p>
-                      <p className="text-xs text-slate-400 mt-1">{formatRelativeTime(act.created_at)}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+          {activeTab === 'timeline' && client && (
+            <ActivityTimeline clientId={client.id} clientName={client.name} />
           )}
 
           {activeTab === 'calls' && (
@@ -316,12 +307,33 @@ export default function ClientDetailPage() {
     )
   }
 
+  function renderMeddic() {
+    if (!client) return null
+    return (
+      <MEDDICWidget
+        client={client}
+        onUpdated={(meddic) =>
+          setClient((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  custom_fields: { ...(prev.custom_fields ?? {}), meddic },
+                }
+              : prev,
+          )
+        }
+      />
+    )
+  }
+
   function renderSection(sid: ClientDetailSectionId) {
     switch (sid) {
       case 'info':
         return renderInfo()
       case 'actions':
         return renderActions()
+      case 'meddic':
+        return renderMeddic()
       case 'tabs':
         return renderTabs()
     }

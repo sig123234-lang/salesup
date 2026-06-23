@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar,
+  Camera,
   FileText,
   Loader2,
   Mic,
   Send,
   Square,
+  Upload,
   UserPlus,
   X,
 } from 'lucide-react'
@@ -76,10 +78,26 @@ function QuickCaptureContent({
     address: '',
   })
   const [eventForm, setEventForm] = useState(createDefaultEventForm)
+  const [cardState, setCardState] = useState<'idle' | 'processing' | 'review'>('idle')
+  const [cardPreview, setCardPreview] = useState<string | null>(null)
+  const [cardWarning, setCardWarning] = useState<string | null>(null)
+  const [cardForm, setCardForm] = useState({
+    name: '',
+    company: '',
+    contact_name: '',
+    phone: '',
+    email: '',
+    address: '',
+    department: '',
+    position: '',
+    business_card_url: null as string | null,
+  })
 
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const cardInputRef = useRef<HTMLInputElement | null>(null)
+  const cardCameraRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (!profile || !['VOICE', 'NOTE'].includes(mode)) return
@@ -327,6 +345,90 @@ function QuickCaptureContent({
     finishFlow('고객이 등록되었습니다.', `/clients/${client.id}`)
   }
 
+  const handleCardFile = async (file: File) => {
+    setErrorMessage(null)
+    setCardWarning(null)
+    setCardState('processing')
+    const previewUrl = URL.createObjectURL(file)
+    setCardPreview(previewUrl)
+
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      const res = await fetch('/api/ai/ocr-card', { method: 'POST', body: formData })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || '명함 인식에 실패했습니다.')
+      const data = json.data as typeof cardForm
+      setCardForm({
+        name: data.name || data.company || '',
+        company: data.company || '',
+        contact_name: data.contact_name || '',
+        phone: data.phone || '',
+        email: data.email || '',
+        address: data.address || '',
+        department: data.department || '',
+        position: data.position || '',
+        business_card_url: data.business_card_url ?? null,
+      })
+      if (json.storage_warning) setCardWarning(json.storage_warning as string)
+      setCardState('review')
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : '명함 인식에 실패했습니다.')
+      setCardState('idle')
+    }
+  }
+
+  const saveCardClient = async () => {
+    if (!profile) return
+    if (!cardForm.name.trim() && !cardForm.company.trim()) {
+      setErrorMessage('업체명을 확인해주세요.')
+      return
+    }
+
+    setSaving(true)
+    setErrorMessage(null)
+
+    const finalName = cardForm.name.trim() || cardForm.company.trim()
+
+    const { data: client, error } = await supabase
+      .from('clients')
+      .insert({
+        name: finalName,
+        contact_name: cardForm.contact_name.trim() || null,
+        phone: cardForm.phone.trim() || null,
+        email: cardForm.email.trim() || null,
+        address: cardForm.address.trim() || null,
+        business_card_url: cardForm.business_card_url,
+        owner_id: profile.id,
+        company_id: profile.company_id,
+        industry: 'general',
+        contract_probability: 10,
+        custom_fields: {
+          department: cardForm.department || null,
+          position: cardForm.position || null,
+        },
+      })
+      .select('id')
+      .single()
+
+    if (error || !client) {
+      setErrorMessage(error?.message || '거래처 등록에 실패했습니다.')
+      setSaving(false)
+      return
+    }
+
+    await supabase.from('activities').insert({
+      client_id: client.id,
+      user_id: profile.id,
+      type: 'NOTE',
+      content: `명함 등록으로 거래처가 생성되었습니다. (${cardForm.contact_name || ''} ${cardForm.position || ''})`.trim(),
+      metadata: { source: 'quick_capture', sub_source: 'business_card' },
+    })
+
+    setSaving(false)
+    finishFlow('명함이 거래처로 등록되었습니다.', `/clients/${client.id}`)
+  }
+
   const saveEvent = async () => {
     if (!profile) return
     if (!eventForm.title.trim()) {
@@ -397,11 +499,13 @@ function QuickCaptureContent({
               {mode === 'NOTE' && <FileText className="h-5 w-5 text-amber-500" />}
               {mode === 'CLIENT' && <UserPlus className="h-5 w-5 text-green-500" />}
               {mode === 'EVENT' && <Calendar className="h-5 w-5 text-purple-500" />}
+              {mode === 'CARD' && <Camera className="h-5 w-5 text-sky-500" />}
               <h3 className="font-semibold text-slate-900 dark:text-white">
                 {mode === 'VOICE' && '음성 메모'}
                 {mode === 'NOTE' && '빠른 메모'}
                 {mode === 'CLIENT' && '고객 추가'}
                 {mode === 'EVENT' && '일정 추가'}
+                {mode === 'CARD' && '명함 등록'}
               </h3>
             </div>
             <button
@@ -577,6 +681,147 @@ function QuickCaptureContent({
             </div>
           )}
 
+          {mode === 'CARD' && (
+            <div className="space-y-3">
+              <input
+                ref={cardInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void handleCardFile(file)
+                }}
+              />
+              <input
+                ref={cardCameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void handleCardFile(file)
+                }}
+              />
+
+              {cardState === 'idle' && (
+                <>
+                  <p className="text-sm text-slate-500 text-center mb-3">
+                    명함을 촬영하거나 사진을 선택하면 AI가 자동으로 정보를 추출합니다.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => cardCameraRef.current?.click()}
+                      className="flex flex-col items-center gap-2 py-4 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 rounded-xl hover:bg-sky-100"
+                    >
+                      <Camera className="h-5 w-5" />
+                      <span className="text-sm font-medium">카메라로 촬영</span>
+                    </button>
+                    <button
+                      onClick={() => cardInputRef.current?.click()}
+                      className="flex flex-col items-center gap-2 py-4 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-600"
+                    >
+                      <Upload className="h-5 w-5" />
+                      <span className="text-sm font-medium">갤러리에서 선택</span>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {cardState === 'processing' && (
+                <div className="py-6 text-center space-y-3">
+                  {cardPreview && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={cardPreview}
+                      alt="명함 미리보기"
+                      className="mx-auto max-h-40 rounded-xl object-contain border border-slate-200 dark:border-slate-700"
+                    />
+                  )}
+                  <Loader2 className="mx-auto h-8 w-8 animate-spin text-sky-500" />
+                  <p className="text-sm text-slate-500">AI가 명함 정보를 추출하는 중...</p>
+                </div>
+              )}
+
+              {cardState === 'review' && (
+                <div className="space-y-3">
+                  {cardPreview && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={cardPreview}
+                      alt="명함"
+                      className="mx-auto max-h-32 rounded-xl object-contain border border-slate-200 dark:border-slate-700"
+                    />
+                  )}
+                  {cardWarning && (
+                    <p className="rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                      ⚠️ {cardWarning}
+                    </p>
+                  )}
+                  <CardField
+                    label="회사명"
+                    value={cardForm.company}
+                    onChange={(v) => setCardForm((p) => ({ ...p, company: v, name: p.name || v }))}
+                  />
+                  <CardField
+                    label="담당자"
+                    value={cardForm.contact_name}
+                    onChange={(v) => setCardForm((p) => ({ ...p, contact_name: v }))}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <CardField
+                      label="부서"
+                      value={cardForm.department}
+                      onChange={(v) => setCardForm((p) => ({ ...p, department: v }))}
+                    />
+                    <CardField
+                      label="직책"
+                      value={cardForm.position}
+                      onChange={(v) => setCardForm((p) => ({ ...p, position: v }))}
+                    />
+                  </div>
+                  <CardField
+                    label="전화"
+                    value={cardForm.phone}
+                    onChange={(v) => setCardForm((p) => ({ ...p, phone: v }))}
+                    type="tel"
+                  />
+                  <CardField
+                    label="이메일"
+                    value={cardForm.email}
+                    onChange={(v) => setCardForm((p) => ({ ...p, email: v }))}
+                    type="email"
+                  />
+                  <CardField
+                    label="주소"
+                    value={cardForm.address}
+                    onChange={(v) => setCardForm((p) => ({ ...p, address: v }))}
+                  />
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={saveCardClient}
+                      disabled={saving}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-500 py-3 font-medium text-white disabled:opacity-40"
+                    >
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                      거래처 등록
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCardState('idle')
+                        setCardPreview(null)
+                      }}
+                      className="px-4 py-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-sm"
+                    >
+                      다시 촬영
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {mode === 'EVENT' && (
             <div className="space-y-3">
               <input
@@ -611,5 +856,29 @@ function QuickCaptureContent({
         </motion.div>
       </div>
     </AnimatePresence>
+  )
+}
+
+function CardField({
+  label,
+  value,
+  onChange,
+  type = 'text',
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  type?: 'text' | 'tel' | 'email'
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <label className="text-xs text-slate-500 w-14 flex-shrink-0">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+      />
+    </div>
   )
 }

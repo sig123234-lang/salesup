@@ -4,6 +4,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import MobileNav from '@/components/layout/MobileNav'
 import QuickCapture from '@/components/quick-capture/QuickCapture'
 import FloatingAIButton from '@/components/quick-capture/FloatingAIButton'
+import { AIChatPanel } from '@/components/ai/AIChatPanel'
 
 export default async function DashboardLayout({
   children,
@@ -37,6 +38,9 @@ export default async function DashboardLayout({
 
       {/* Quick Capture Modal */}
       <QuickCapture />
+
+      {/* AI Chat Panel */}
+      <AIChatPanel />
     </div>
   )
 }

@@ -14,6 +14,12 @@ import { CalendarWidget } from '@/components/widgets/CalendarWidget'
 import { AITipWidget } from '@/components/widgets/AITipWidget'
 import { KanbanPreviewWidget } from '@/components/widgets/KanbanPreviewWidget'
 import { FollowupAlertWidget } from '@/components/widgets/FollowupAlertWidget'
+import { CSReminderWidget } from '@/components/widgets/CSReminderWidget'
+import { FollowupCounterWidget } from '@/components/widgets/FollowupCounterWidget'
+import { DailyBriefWidget } from '@/components/widgets/DailyBriefWidget'
+import { GoalTrackerWidget } from '@/components/widgets/GoalTrackerWidget'
+import { CompetitorWidget } from '@/components/widgets/CompetitorWidget'
+import { DailyReportWidget } from '@/components/widgets/DailyReportWidget'
 import { DashboardEditModal } from '@/components/widgets/DashboardEditModal'
 
 interface DashboardData {
@@ -40,12 +46,18 @@ function computeStats(clients: Client[]) {
 
 // Widget layout: some widgets span full width, some are half
 const WIDGET_SPAN: Partial<Record<WidgetId, 'full' | 'half'>> = {
+  'daily-brief': 'full',
   stats: 'full',
   'recent-clients': 'full',
   calendar: 'half',
   'ai-tip': 'half',
   'kanban-preview': 'half',
   'followup-alert': 'half',
+  'cs-reminder': 'full',
+  'followup-counter': 'full',
+  'goal-tracker': 'full',
+  'competitor-intel': 'full',
+  'daily-report': 'full',
 }
 
 export default function DashboardPage() {
@@ -105,6 +117,8 @@ export default function DashboardPage() {
 
   function renderWidget(id: WidgetId) {
     switch (id) {
+      case 'daily-brief':
+        return <DailyBriefWidget />
       case 'stats':
         return (
           <StatsWidget
@@ -125,6 +139,16 @@ export default function DashboardPage() {
         return <KanbanPreviewWidget clients={data.clients} loading={loading} />
       case 'followup-alert':
         return <FollowupAlertWidget clients={data.clients} loading={loading} />
+      case 'cs-reminder':
+        return <CSReminderWidget />
+      case 'followup-counter':
+        return <FollowupCounterWidget clients={data.clients} loading={loading} />
+      case 'goal-tracker':
+        return <GoalTrackerWidget />
+      case 'competitor-intel':
+        return <CompetitorWidget />
+      case 'daily-report':
+        return <DailyReportWidget />
     }
   }
 
